@@ -1,38 +1,26 @@
 package ru.skypro.recommendation.service;
 
-import ru.skypro.recommendation.Rules.*;
-import ru.skypro.recommendation.model.*;
-import org.springframework.jdbc.core.JdbcTemplate;
+import ru.skypro.recommendation.model.RecommendationDTO;
+import ru.skypro.recommendation.model.RecommendationRuleSet;
+
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
 @Service
 public class RecommendationService {
+    private final List<RecommendationRuleSet> rules;
 
-    private final JdbcTemplate jdbcTemplate;
-
-    public RecommendationService(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    @Autowired
+    public RecommendationService(List<RecommendationRuleSet> rules) {
+        this.rules = rules;
     }
 
-    // Вспомогательные методы
-    private User getUserById(String userId) {
-        String sql = "SELECT ID, USERNAME, FIRST_NAME, LAST_NAME FROM USERS WHERE ID = ?";
-        return jdbcTemplate.queryForObject(sql, new UserRowMapper(), userId);
+    public List<RecommendationDTO> getRecommendations(UUID userId) {
+        return rules.stream()
+                .map(rule -> rule.check(userId))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .toList();
     }
-
-    private List<Transaction> getTransactionsByUserId(String userId) {
-        String sql = "SELECT ID, PRODUCT_ID, USER_ID, TYPE, AMOUNT FROM TRANSACTIONS WHERE USER_ID = ?";
-        return jdbcTemplate.query(sql, new TransactionRowMapper(), userId);
-    }
-
-    private List<Product> getProductsByUserId(String userId) {
-        String sql = """
-            SELECT DISTINCT p.ID, p.TYPE, p.NAME
-            FROM TRANSACTIONS t
-            JOIN PRODUCTS p ON t.PRODUCT_ID = p.ID
-            WHERE t.USER_ID = ?
-            """;
-        return jdbcTemplate.query(sql, new ProductRowMapper(), userId);
-    }
-
-
 }

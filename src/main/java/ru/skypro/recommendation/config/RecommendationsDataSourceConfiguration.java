@@ -24,4 +24,8 @@ public class RecommendationsDataSourceConfiguration {
     public JdbcTemplate jdbcTemplate(@Qualifier("recommendationsDataSource") DataSource ds) {
         return new JdbcTemplate(ds);
     }
+    @Bean
+    public JdbcTemplate jdbcTemplate(DataSource dataSource) {
+        return new JdbcTemplate(dataSource);
+    }
 }
