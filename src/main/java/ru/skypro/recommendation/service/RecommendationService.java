@@ -3,7 +3,6 @@ package ru.skypro.recommendation.service;
 import ru.skypro.recommendation.Rules.*;
 import ru.skypro.recommendation.model.*;
 import org.springframework.jdbc.core.JdbcTemplate;
-import java.util.ArrayList;
 import java.util.List;
 @Service
 public class RecommendationService {
