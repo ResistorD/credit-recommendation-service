@@ -1,26 +1,27 @@
 package ru.skypro.recommendation.service;
 
-import ru.skypro.recommendation.model.RecommendationDTO;
+import org.springframework.stereotype.Service;
+import ru.skypro.recommendation.dto.RecommendationDTO;
 import ru.skypro.recommendation.model.RecommendationRuleSet;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
 public class RecommendationService {
-    private final List<RecommendationRuleSet> rules;
 
-    @Autowired
-    public RecommendationService(List<RecommendationRuleSet> rules) {
-        this.rules = rules;
+    private final List<RecommendationRuleSet> ruleSets;
+
+    public RecommendationService(List<RecommendationRuleSet> ruleSets) {
+        this.ruleSets = ruleSets;
     }
 
-    public List<RecommendationDTO> getRecommendations(UUID userId) {
-        return rules.stream()
-                .map(rule -> rule.check(userId))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .toList();
+    public List<RecommendationDTO> generateRecommendations(UUID userId) {
+        List<RecommendationDTO> recommendations = new ArrayList<>();
+        for (RecommendationRuleSet ruleSet : ruleSets) {
+            ruleSet.check(userId).ifPresent(recommendations::add);
+        }
+        return recommendations;
     }
 }

@@ -1,7 +1,7 @@
 package ru.skypro.recommendation.rules;
 
 import org.springframework.stereotype.Component;
-import ru.skypro.recommendation.model.RecommendationDTO;
+import ru.skypro.recommendation.dto.RecommendationDTO;
 import ru.skypro.recommendation.model.RecommendationRuleSet;
 import ru.skypro.recommendation.repository.RecommendationRepository;
 

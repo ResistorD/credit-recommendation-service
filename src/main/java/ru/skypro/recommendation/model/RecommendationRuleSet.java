@@ -1,6 +1,7 @@
 package ru.skypro.recommendation.model;
 
-import java.util.List;
+import ru.skypro.recommendation.dto.RecommendationDTO;
+
 import java.util.Optional;
 import java.util.UUID;
 
