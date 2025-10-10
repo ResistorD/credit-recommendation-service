@@ -36,6 +36,12 @@ build/
 *.h2.db
 *.db
 *.log
+*.trace.db
 
 .DS_Store
 Thumbs.db
+
+# Archives
+*.zip
+*.7z
+*.rar

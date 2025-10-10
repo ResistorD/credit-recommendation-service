@@ -1,4 +1,4 @@
-package ru.skypro.recommendation.rules;
+package ru.skypro.recommendation.rule;
 
 import org.springframework.stereotype.Component;
 import ru.skypro.recommendation.dto.RecommendationDTO;
