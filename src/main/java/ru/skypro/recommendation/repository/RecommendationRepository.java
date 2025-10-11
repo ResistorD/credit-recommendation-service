@@ -1,7 +1,6 @@
 package ru.skypro.recommendation.repository;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import org.springframework.boot.autoconfigure.cache.CacheProperties;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -55,7 +54,7 @@ public class RecommendationRepository {
         });
     }
     public long getSumOfTransactionsByUserAndProductAndTransactionType(UUID userId, String productType, String transactionType) {
-        CacheKey3 key = new CacheKey3(userId, productType, transactionType);
+        CacheKey2 key = new CacheKey2(userId, productType, transactionType);
         return transactionSumCache.get(key, k -> {
             String sql = """
                     SELECT SUM(t.AMOUNT)
@@ -80,19 +79,19 @@ public class RecommendationRepository {
         return jdbcTemplate.queryForObject(sql, String.class, productId);
     }
     // Кеш для hasProductOfTypeByUser
-    private final Cache<CacheKey, Boolean> productTypeCache = CacheProperties.Caffeine.newBuilder()
+    private final Cache<CacheKey, Boolean> productTypeCache = Caffeine.newBuilder()
             .maximumSize(1000)
             .expireAfterWrite(10, TimeUnit.MINUTES)
             .build();
 
     // Кеш для getSumOfTransactionsByUserAndProductAndTransactionType
-    private final Cache<CacheKey2, Long> transactionSumCache = CacheProperties.Caffeine.newBuilder()
+    private final Cache<CacheKey2, Long> transactionSumCache = Caffeine.newBuilder()
             .maximumSize(1000)
             .expireAfterWrite(10, TimeUnit.MINUTES)
             .build();
 
     // Кеш для isActiveUserOfProductType
-    private final Cache<CacheKey, Boolean> activeUserCache = CacheProperties.Caffeine.newBuilder()
+    private final Cache<CacheKey, Boolean> activeUserCache = Caffeine.newBuilder()
             .maximumSize(1000)
             .expireAfterWrite(10, TimeUnit.MINUTES)
             .build();
