@@ -11,4 +11,5 @@ public class RecommendationDTO {
     private String id;
     private String name;
     private String text;
+
 }
