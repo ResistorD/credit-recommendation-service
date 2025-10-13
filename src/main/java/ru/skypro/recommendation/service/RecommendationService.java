@@ -11,17 +11,25 @@ import java.util.UUID;
 @Service
 public class RecommendationService {
 
-    private final List<RecommendationRuleSet> ruleSets;
+    private final List<RecommendationRuleSet> staticRules; // старые фиксированные правила
+    private final DynamicRecommendationService dynamicRules;
 
-    public RecommendationService(List<RecommendationRuleSet> ruleSets) {
-        this.ruleSets = ruleSets;
+    public RecommendationService(List<RecommendationRuleSet> staticRules, DynamicRecommendationService dynamicRules) {
+        this.staticRules = staticRules;
+        this.dynamicRules = dynamicRules;
     }
 
     public List<RecommendationDTO> generateRecommendations(UUID userId) {
-        List<RecommendationDTO> recommendations = new ArrayList<>();
-        for (RecommendationRuleSet ruleSet : ruleSets) {
-            ruleSet.check(userId).ifPresent(recommendations::add);
-        }
-        return recommendations;
+        List<RecommendationDTO> staticRecommendations = staticRules.stream()
+                .map(rule -> rule.check(userId))
+                .filter(java.util.Optional::isPresent)
+                .map(java.util.Optional::get)
+                .toList();
+
+        List<RecommendationDTO> dynamicRecommendations = dynamicRules.getDynamicRecommendations(userId);
+
+        staticRecommendations.addAll(dynamicRecommendations);
+
+        return staticRecommendations;
     }
 }
