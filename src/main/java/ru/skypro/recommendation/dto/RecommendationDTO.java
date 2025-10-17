@@ -11,7 +11,4 @@ public class RecommendationDTO {
     private String id;
     private String name;
     private String text;
-
-    public RecommendationDTO(String id, String name, String text) {
-    }
 }
