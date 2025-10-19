@@ -18,11 +18,13 @@ public class DynamicRecommendationService {
     private final RuleRepository ruleRepository;
     private final RecommendationRepository recommendationRepository;
     private final ObjectMapper objectMapper;
+    private final RuleStatsService ruleStatsService;
 
-    public DynamicRecommendationService(RuleRepository ruleRepository, RecommendationRepository recommendationRepository) {
+    public DynamicRecommendationService(RuleRepository ruleRepository, RecommendationRepository recommendationRepository, RuleStatsService ruleStatsService) {
         this.ruleRepository = ruleRepository;
         this.recommendationRepository = recommendationRepository;
         this.objectMapper = new ObjectMapper();
+        this.ruleStatsService = ruleStatsService;
     }
 
     public List<RecommendationDTO> getDynamicRecommendations(UUID userId) {
@@ -53,6 +55,7 @@ public class DynamicRecommendationService {
             UUID recommendedProductId = UUID.fromString(recommendedProductIdNode.asText());
 
             if (evaluateRule(userId, conditionsNode)) {
+                ruleStatsService.incrementHitCount(rule.getId());
                 String productName = recommendationRepository.getProductNameById(recommendedProductId);
                 String productDescription = recommendationRepository.getProductDescriptionById(recommendedProductId);
 

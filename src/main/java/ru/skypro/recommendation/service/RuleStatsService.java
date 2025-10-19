@@ -21,6 +21,7 @@ public class RuleStatsService {
         this.ruleRepository = ruleRepository;
     }
 
+
     public void incrementHitCount(UUID ruleId) {
         Optional<RuleStats> existingStats = statsRepository.findById(ruleId);
         RuleStats stats;
