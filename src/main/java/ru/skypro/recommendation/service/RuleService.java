@@ -11,9 +11,12 @@ import java.util.UUID;
 public class RuleService {
 
     private final RuleRepository repository;
+    private final RuleStatsService ruleStatsService; // Добавляем зависимость
 
-    public RuleService(RuleRepository repository) {
+    public RuleService(RuleRepository repository, RuleStatsService ruleStatsService) {
+
         this.repository = repository;
+        this.ruleStatsService = ruleStatsService;
     }
 
     public Iterable<Rule> getAll() {
@@ -29,6 +32,7 @@ public class RuleService {
     }
 
     public void delete(UUID id) {
+        ruleStatsService.deleteStatsForRule(id); // Удаляем статистику перед удалением правила
         repository.deleteById(id);
     }
 }
