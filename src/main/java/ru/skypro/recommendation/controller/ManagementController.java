@@ -17,7 +17,6 @@ public class ManagementController {
 
     @PostMapping("/clear-caches")
     public void clearCaches() {
-        // очищаем ручные Caffeine-кеши в репозитории
         recommendationRepository.clearCaches();
     }
 }
