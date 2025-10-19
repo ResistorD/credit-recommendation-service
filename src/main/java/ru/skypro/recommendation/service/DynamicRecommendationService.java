@@ -16,7 +16,7 @@ import java.util.UUID;
 @Service
 public class DynamicRecommendationService {
     private final RuleRepository ruleRepository;
-    private final RecommendationRepository recommendationRepository; // JDBC
+    private final RecommendationRepository recommendationRepository;
     private final ObjectMapper objectMapper;
 
     public DynamicRecommendationService(RuleRepository ruleRepository, RecommendationRepository recommendationRepository) {
@@ -29,34 +29,50 @@ public class DynamicRecommendationService {
         List<RecommendationDTO> result = new ArrayList<>();
 
         for (Rule rule : ruleRepository.findAll()) {
-            if (evaluateRule(userId, rule.getRuleJson())) {
-                // Получить информацию о продукте из другой БД
-                String productName = recommendationRepository.getProductNameById(rule.getRecommendedProductId());
-                String productDescription = recommendationRepository.getProductDescriptionById(rule.getRecommendedProductId());
+            JsonNode ruleNode;
+            try {
+                ruleNode = objectMapper.readTree(rule.getRuleDescription());
+            } catch (JsonProcessingException e) {
+                // Логировать ошибку и пропустить правило
+                continue;
+            }
+
+            JsonNode conditionsNode = ruleNode.get("conditions");
+            JsonNode recommendedProductIdNode = ruleNode.get("recommendedProductId");
+
+            if (conditionsNode == null) {
+                // Старый формат — массив условий
+                conditionsNode = ruleNode;
+            }
+
+            if (recommendedProductIdNode == null) {
+                // Пропускаем правило, если нет recommendedProductId
+                continue;
+            }
+
+            UUID recommendedProductId = UUID.fromString(recommendedProductIdNode.asText());
+
+            if (evaluateRule(userId, conditionsNode)) {
+                String productName = recommendationRepository.getProductNameById(recommendedProductId);
+                String productDescription = recommendationRepository.getProductDescriptionById(recommendedProductId);
 
                 result.add(new RecommendationDTO(
-                        rule.getRecommendedProductId().toString(),
+                        recommendedProductId.toString(),
                         productName,
-                        productDescription
-                ));
+                        productDescription));
             }
         }
 
         return result;
     }
 
-    private boolean evaluateRule(UUID userId, String ruleJson) {
-        try {
-            JsonNode ruleNode = objectMapper.readTree(ruleJson);
-            for (JsonNode condition : ruleNode) {
-                if (!evaluateCondition(userId, condition)) {
-                    return false; // Все условия должны быть true
-                }
+    private boolean evaluateRule(UUID userId, JsonNode ruleNode) {
+        for (JsonNode condition : ruleNode) {
+            if (!evaluateCondition(userId, condition)) {
+                return false;
             }
-            return true;
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Invalid rule JSON", e);
         }
+        return true;
     }
 
     private boolean evaluateCondition(UUID userId, JsonNode condition) {
@@ -73,6 +89,13 @@ public class DynamicRecommendationService {
                 String productType = args.get(0).asText();
                 yield recommendationRepository.isActiveUserOfProductType(userId, productType);
             }
+            case "TRANSACTION_SUM_COMPARE_DEPOSIT_WITHDRAW" -> {
+                String productType = args.get(0).asText();
+                String operator = args.get(1).asText();
+                long depositSum = recommendationRepository.getSumOfTransactionsByUserAndProductAndTransactionType(userId, productType, "DEPOSIT");
+                long withdrawSum = recommendationRepository.getSumOfTransactionsByUserAndProductAndTransactionType(userId, productType, "WITHDRAW");
+                yield compare(depositSum, operator, withdrawSum);
+            }
             case "TRANSACTION_SUM_COMPARE" -> {
                 String productType = args.get(0).asText();
                 String transactionType = args.get(1).asText();
@@ -80,13 +103,6 @@ public class DynamicRecommendationService {
                 long value = args.get(3).asLong();
                 long sum = recommendationRepository.getSumOfTransactionsByUserAndProductAndTransactionType(userId, productType, transactionType);
                 yield compare(sum, operator, value);
-            }
-            case "TRANSACTION_SUM_COMPARE_DEPOSIT_WITHDRAW" -> {
-                String productType = args.get(0).asText();
-                String operator = args.get(1).asText();
-                long depositSum = recommendationRepository.getSumOfTransactionsByUserAndProductAndTransactionType(userId, productType, "DEPOSIT");
-                long withdrawSum = recommendationRepository.getSumOfTransactionsByUserAndProductAndTransactionType(userId, productType, "WITHDRAW");
-                yield compare(depositSum, operator, withdrawSum);
             }
             default -> false;
         };
@@ -104,5 +120,4 @@ public class DynamicRecommendationService {
             default -> false;
         };
     }
-
 }
