@@ -1,16 +1,20 @@
 package ru.skypro.recommendation.model;
 
 import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
+
 
 import java.util.UUID;
 
 @Entity
-@Table(name = "rule_stats")
+@Table("rule_stats")
 public class RuleStats {
     @Id
     private UUID ruleId; // ссылка на Rule.id
 
-    @Column(name = "hit_count")
+    @Column("hit_count")
     private long hitCount = 0;
 
     // Конструкторы
