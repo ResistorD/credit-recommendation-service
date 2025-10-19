@@ -13,4 +13,11 @@ public class RecommendationDTO {
     private UUID id;
     private String name;
     private String text;
+
+    public RecommendationDTO(String id, String text, String name) {
+        this.id = id;
+        this.text = text;
+        this.name = name;
+    }
 }
+
