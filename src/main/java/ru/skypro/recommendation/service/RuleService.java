@@ -11,9 +11,12 @@ import java.util.UUID;
 public class RuleService {
 
     private final RuleRepository repository;
+    private final RuleStatService ruleStatService;
 
-    public RuleService(RuleRepository repository) {
+    // Внедряем оба сервиса через конструктор
+    public RuleService(RuleRepository repository, RuleStatService ruleStatService) {
         this.repository = repository;
+        this.ruleStatService = ruleStatService;
     }
 
     public Iterable<Rule> getAll() {
@@ -29,6 +32,7 @@ public class RuleService {
     }
 
     public void delete(UUID id) {
+        ruleStatService.deleteByRule(id);
         repository.deleteById(id);
     }
 }
