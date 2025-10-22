@@ -8,6 +8,7 @@ import ru.skypro.recommendation.dto.RecommendationDTO;
 import ru.skypro.recommendation.model.Rule;
 import ru.skypro.recommendation.repository.RecommendationRepository;
 import ru.skypro.recommendation.repository.RuleRepository;
+import ru.skypro.recommendation.repository.RuleStatRepository;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,12 +18,15 @@ import java.util.UUID;
 public class DynamicRecommendationService {
 
     private final RuleRepository ruleRepository;
+    private final RuleStatRepository ruleStatRepository; // ← добавлено
     private final RecommendationRepository recommendationRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public DynamicRecommendationService(RuleRepository ruleRepository,
+                                        RuleStatRepository ruleStatRepository, // ← добавлено
                                         RecommendationRepository recommendationRepository) {
         this.ruleRepository = ruleRepository;
+        this.ruleStatRepository = ruleStatRepository; // ← добавлено
         this.recommendationRepository = recommendationRepository;
     }
 
@@ -30,20 +34,17 @@ public class DynamicRecommendationService {
         List<RecommendationDTO> result = new ArrayList<>();
 
         for (Rule rule : ruleRepository.findAll()) {
-            // JSON правил берём из ruleDescription
             String json = rule.getRuleDescription();
 
-            // если условия не выполняются — правило пропускаем
             if (!evaluateRule(userId, json)) continue;
 
-            // достаём продукт для рекомендации
             UUID recId = extractRecommendedProductId(json);
             if (recId == null) continue;
 
             String name = recommendationRepository.getProductNameById(recId);
             String description = recommendationRepository.getProductDescriptionById(recId);
 
-            result.add(new RecommendationDTO(recId.toString(), name, description));
+            result.add(new RecommendationDTO(recId, name, description));
         }
         return result;
     }
@@ -63,15 +64,11 @@ public class DynamicRecommendationService {
     private boolean evaluateRule(UUID userId, String ruleJson) {
         try {
             JsonNode root = objectMapper.readTree(ruleJson);
-            // поддерживаем и массив условий, и объект { "conditions": [ ... ] }
             JsonNode conditions = root.isArray()
                     ? root
                     : (root.has("conditions") ? root.get("conditions") : null);
 
-            if (conditions == null) {
-                // нет условий — считаем правило истинным
-                return true;
-            }
+            if (conditions == null) return true;
 
             for (JsonNode condition : conditions) {
                 if (!evaluateCondition(userId, condition)) return false;
@@ -97,8 +94,8 @@ public class DynamicRecommendationService {
             }
             case "TRANSACTION_SUM_COMPARE": {
                 String productType = args.get(0).asText();
-                String txType = args.get(1).asText(); // тип транзакции
-                String cmp = args.get(2).asText(); // >, >=, <, <=, ==, !=
+                String txType = args.get(1).asText();
+                String cmp = args.get(2).asText();
                 long amount = args.get(3).asLong();
 
                 long sum = recommendationRepository
@@ -107,7 +104,7 @@ public class DynamicRecommendationService {
             }
             case "TRANSACTION_SUM_COMPARE_DEPOSIT_WITHDRAW": {
                 String productType = args.get(0).asText();
-                String direction = args.get(1).asText(); // DEPOSIT / WITHDRAW
+                String direction = args.get(1).asText();
                 String cmp = args.get(2).asText();
                 long amount = args.get(3).asLong();
 
@@ -132,7 +129,8 @@ public class DynamicRecommendationService {
                 return lhs <= rhs;
             case "==":
                 return lhs == rhs;
+            default:
+                return lhs != rhs; // "!="
         }
-        return lhs != rhs; // "!="
     }
 }

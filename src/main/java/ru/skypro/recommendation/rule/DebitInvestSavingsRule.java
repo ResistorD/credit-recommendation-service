@@ -24,7 +24,11 @@ public class DebitInvestSavingsRule implements RecommendationRuleSet {
         // - нет ли продукта INVEST
         // - сумма пополнений по SAVING > 1000
         if (hasDebitProduct(userId) && !hasInvestProduct(userId) && getSavingsDepositSum(userId) > 1000)
-        { return Optional.of(new RecommendationDTO("147f6a0f-3b91-413b-ab99-87f081d60d5a","Invest 500","Откройте свой путь к успеху с индивидуальным инвестиционным счетом (ИИС) от нашего банка!..."));
+        { return Optional.of(new RecommendationDTO(
+                UUID.fromString("147f6a0f-3b91-413b-ab99-87f081d60d5a"),
+                "Invest 500",
+                "Откройте свой путь к успеху с индивидуальным инвестиционным счётом (ИИС) от нашего банка!..."
+          ));
         }
         return Optional.empty();
     }
