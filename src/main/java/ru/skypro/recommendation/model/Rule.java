@@ -16,15 +16,21 @@ public class Rule {
     @Column("rule_description")
     private String ruleDescription;
 
+    @Column("recommended_product_id")
+    private UUID recommendedProductId;
+
+
     // Конструкторы
     public Rule() {
     }
 
-    public Rule(UUID id, String ruleName, String ruleDescription) {
+    public Rule(UUID id, String ruleName, String ruleDescription, UUID recommendedProductId) {
         this.id = id;
         this.ruleName = ruleName;
         this.ruleDescription = ruleDescription;
+        this.recommendedProductId = recommendedProductId;
     }
+
 
     // Геттеры и сеттеры
     public UUID getId() {
@@ -50,4 +56,13 @@ public class Rule {
     public void setRuleDescription(String ruleDescription) {
         this.ruleDescription = ruleDescription;
     }
+
+    public UUID getRecommendedProductId() {
+        return recommendedProductId;
+    }
+
+    public void setRecommendedProductId(UUID recommendedProductId) {
+        this.recommendedProductId = recommendedProductId;
+    }
+
 }
