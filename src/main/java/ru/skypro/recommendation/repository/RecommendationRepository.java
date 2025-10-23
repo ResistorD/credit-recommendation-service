@@ -98,12 +98,6 @@ public class RecommendationRepository {
         activeUserCache.invalidateAll();
     }
 
-    public void clearCaches() {
-        productTypeCache.invalidateAll();
-        transactionSumCache.invalidateAll();
-        activeUserCache.invalidateAll();
-    }
-
     // Ключи кешей
     private record CacheKey(UUID userId, String productType) {}
     private record CacheKey2(UUID userId, String productType, String transactionType) {}
