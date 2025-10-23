@@ -13,4 +13,9 @@ public class RecommendationDTO {
     private UUID id;
     private String name;
     private String text;
+
+    public RecommendationDTO(String id, String name, String text) {
+        this(UUID.fromString(id), name, text);
+    }
 }
+

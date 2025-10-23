@@ -8,7 +8,6 @@ import ru.skypro.recommendation.dto.RecommendationDTO;
 import ru.skypro.recommendation.model.Rule;
 import ru.skypro.recommendation.repository.RecommendationRepository;
 import ru.skypro.recommendation.repository.RuleRepository;
-import ru.skypro.recommendation.repository.RuleStatRepository;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,121 +15,109 @@ import java.util.UUID;
 
 @Service
 public class DynamicRecommendationService {
-
     private final RuleRepository ruleRepository;
-    private final RuleStatRepository ruleStatRepository; // ← добавлено
     private final RecommendationRepository recommendationRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
-    public DynamicRecommendationService(RuleRepository ruleRepository,
-                                        RuleStatRepository ruleStatRepository, // ← добавлено
-                                        RecommendationRepository recommendationRepository) {
+    public DynamicRecommendationService(RuleRepository ruleRepository, RecommendationRepository recommendationRepository) {
         this.ruleRepository = ruleRepository;
-        this.ruleStatRepository = ruleStatRepository; // ← добавлено
         this.recommendationRepository = recommendationRepository;
+        this.objectMapper = new ObjectMapper();
     }
 
     public List<RecommendationDTO> getDynamicRecommendations(UUID userId) {
         List<RecommendationDTO> result = new ArrayList<>();
 
         for (Rule rule : ruleRepository.findAll()) {
-            String json = rule.getRuleDescription();
+            JsonNode ruleNode;
+            try {
+                ruleNode = objectMapper.readTree(rule.getRuleDescription());
+            } catch (JsonProcessingException e) {
+                // Логировать ошибку и пропустить правило
+                continue;
+            }
 
-            if (!evaluateRule(userId, json)) continue;
+            JsonNode conditionsNode = ruleNode.get("conditions");
+            JsonNode recommendedProductIdNode = ruleNode.get("recommendedProductId");
 
-            UUID recId = extractRecommendedProductId(json);
-            if (recId == null) continue;
+            if (conditionsNode == null) {
+                // Старый формат — массив условий
+                conditionsNode = ruleNode;
+            }
 
-            String name = recommendationRepository.getProductNameById(recId);
-            String description = recommendationRepository.getProductDescriptionById(recId);
+            if (recommendedProductIdNode == null) {
+                // Пропускаем правило, если нет recommendedProductId
+                continue;
+            }
 
-            result.add(new RecommendationDTO(recId, name, description));
+            UUID recommendedProductId = UUID.fromString(recommendedProductIdNode.asText());
+
+            if (evaluateRule(userId, conditionsNode)) {
+                String productName = recommendationRepository.getProductNameById(recommendedProductId);
+                String productDescription = recommendationRepository.getProductDescriptionById(recommendedProductId);
+
+                result.add(new RecommendationDTO(
+                        recommendedProductId.toString(),
+                        productName,
+                        productDescription));
+            }
         }
+
         return result;
     }
 
-    private UUID extractRecommendedProductId(String json) {
-        try {
-            JsonNode root = objectMapper.readTree(json);
-            JsonNode idNode = root.isObject() ? root.get("recommendedProductId") : null;
-            if (idNode != null && !idNode.isNull()) {
-                return UUID.fromString(idNode.asText());
-            }
-        } catch (Exception ignored) {
-        }
-        return null;
-    }
-
-    private boolean evaluateRule(UUID userId, String ruleJson) {
-        try {
-            JsonNode root = objectMapper.readTree(ruleJson);
-            JsonNode conditions = root.isArray()
-                    ? root
-                    : (root.has("conditions") ? root.get("conditions") : null);
-
-            if (conditions == null) return true;
-
-            for (JsonNode condition : conditions) {
-                if (!evaluateCondition(userId, condition)) return false;
-            }
-            return true;
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Invalid rule JSON", e);
-        }
-    }
-
-    private boolean evaluateCondition(UUID userId, JsonNode node) {
-        String query = node.has("query") ? node.get("query").asText() : "";
-        JsonNode args = node.get("arguments");
-
-        switch (query) {
-            case "USER_OF": {
-                String productType = args.get(0).asText();
-                return recommendationRepository.hasProductOfTypeByUser(userId, productType);
-            }
-            case "ACTIVE_USER_OF": {
-                String productType = args.get(0).asText();
-                return recommendationRepository.isActiveUserOfProductType(userId, productType);
-            }
-            case "TRANSACTION_SUM_COMPARE": {
-                String productType = args.get(0).asText();
-                String txType = args.get(1).asText();
-                String cmp = args.get(2).asText();
-                long amount = args.get(3).asLong();
-
-                long sum = recommendationRepository
-                        .getSumOfTransactionsByUserAndProductAndTransactionType(userId, productType, txType);
-                return compare(sum, cmp, amount);
-            }
-            case "TRANSACTION_SUM_COMPARE_DEPOSIT_WITHDRAW": {
-                String productType = args.get(0).asText();
-                String direction = args.get(1).asText();
-                String cmp = args.get(2).asText();
-                long amount = args.get(3).asLong();
-
-                long sum = recommendationRepository
-                        .getSumOfTransactionsByUserAndProductAndTransactionType(userId, productType, direction);
-                return compare(sum, cmp, amount);
-            }
-            default:
+    private boolean evaluateRule(UUID userId, JsonNode ruleNode) {
+        for (JsonNode condition : ruleNode) {
+            if (!evaluateCondition(userId, condition)) {
                 return false;
+            }
         }
+        return true;
     }
 
-    private boolean compare(long lhs, String cmp, long rhs) {
-        switch (cmp) {
-            case ">":
-                return lhs > rhs;
-            case ">=":
-                return lhs >= rhs;
-            case "<":
-                return lhs < rhs;
-            case "<=":
-                return lhs <= rhs;
-            case "==":
-                return lhs == rhs;
-            default:
-                return lhs != rhs; // "!="
-        }
+    private boolean evaluateCondition(UUID userId, JsonNode condition) {
+        String query = condition.get("query").asText();
+        var args = condition.get("arguments");
+        boolean negate = condition.has("negate") && condition.get("negate").asBoolean();
+
+        boolean result = switch (query) {
+            case "USER_OF" -> {
+                String productType = args.get(0).asText();
+                yield recommendationRepository.hasProductOfTypeByUser(userId, productType);
+            }
+            case "ACTIVE_USER_OF" -> {
+                String productType = args.get(0).asText();
+                yield recommendationRepository.isActiveUserOfProductType(userId, productType);
+            }
+            case "TRANSACTION_SUM_COMPARE_DEPOSIT_WITHDRAW" -> {
+                String productType = args.get(0).asText();
+                String operator = args.get(1).asText();
+                long depositSum = recommendationRepository.getSumOfTransactionsByUserAndProductAndTransactionType(userId, productType, "DEPOSIT");
+                long withdrawSum = recommendationRepository.getSumOfTransactionsByUserAndProductAndTransactionType(userId, productType, "WITHDRAW");
+                yield compare(depositSum, operator, withdrawSum);
+            }
+            case "TRANSACTION_SUM_COMPARE" -> {
+                String productType = args.get(0).asText();
+                String transactionType = args.get(1).asText();
+                String operator = args.get(2).asText();
+                long value = args.get(3).asLong();
+                long sum = recommendationRepository.getSumOfTransactionsByUserAndProductAndTransactionType(userId, productType, transactionType);
+                yield compare(sum, operator, value);
+            }
+            default -> false;
+        };
+
+        return negate ? !result : result;
+    }
+
+    private boolean compare(long sum, String operator, long value) {
+        return switch (operator) {
+            case ">" -> sum > value;
+            case "<" -> sum < value;
+            case "=" -> sum == value;
+            case ">=" -> sum >= value;
+            case "<=" -> sum <= value;
+            default -> false;
+        };
     }
 }

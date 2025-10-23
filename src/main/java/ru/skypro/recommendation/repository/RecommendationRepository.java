@@ -91,7 +91,7 @@ public class RecommendationRepository {
             .maximumSize(1000)
             .expireAfterWrite(10, TimeUnit.MINUTES)
             .build();
-
+    //Очистка кэша
     public void clearCaches() {
         productTypeCache.invalidateAll();
         transactionSumCache.invalidateAll();
